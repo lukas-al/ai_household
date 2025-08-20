@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import re
+import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Type
+
+from pydantic import BaseModel, Field, ValidationError
 
 from .households import SyntheticHousehold
 
@@ -15,13 +17,30 @@ class Scenario(ABC):
     def name(self) -> str:  # pragma: no cover - interface
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def response_model(self) -> Type[BaseModel]:  # pragma: no cover - interface
+        """Pydantic model describing the structured response."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_prompt(self, household: SyntheticHousehold) -> str:  # pragma: no cover - interface
         raise NotImplementedError
 
     @abstractmethod
-    def parse_response(self, response: str) -> Dict[str, Any]:  # pragma: no cover - interface
+    def parse_response(self, response: Any) -> Dict[str, Any]:  # pragma: no cover - interface
         raise NotImplementedError
+
+
+class WindfallResponse(BaseModel):
+    """Schema for expected LLM output in the windfall scenario."""
+
+    amount_spent: float = Field(
+        ..., description="The dollar amount the household decides to spend from the windfall."
+    )
+    amount_saved: float = Field(
+        ..., description="The dollar amount the household decides to save from the windfall."
+    )
 
 
 class SmallWindfallScenario(Scenario):
@@ -35,22 +54,54 @@ class SmallWindfallScenario(Scenario):
         return f"SmallWindfall-{int(self._amount)}"
 
     def get_prompt(self, household: SyntheticHousehold) -> str:
+        """A concise instruction; Instructor handles the schema enforcement."""
         return (
-            f"You are the financial decision-maker for a household with an annual income of ${household.income:,.0f} "
-            f"and liquid savings of ${household.liquid_wealth:,.0f}. "
-            f"You have just received an unexpected, one-time windfall of ${self._amount:,.0f}. "
-            "Describe what you do with this money, specifying the dollar amounts you would spend and save."
+            f"You are deciding how to allocate a one-time windfall for a household. "
+            f"Household annual income: ${household.income:,.0f}. "
+            f"Liquid savings: ${household.liquid_wealth:,.0f}. "
+            f"Windfall amount: ${self._amount:,.0f}. "
+            "Return the amounts to spend and save given this context."
         )
 
-    def parse_response(self, response: str) -> Dict[str, Any]:
-        # Look for explicit spend/save dollar amounts
-        spent_match = re.search(r"spend\s*\$([\d,]+)", response, re.IGNORECASE)
-        saved_match = re.search(r"save\s*\$([\d,]+)", response, re.IGNORECASE)
-        spent = float(spent_match.group(1).replace(",", "")) if spent_match else 0.0
-        saved = float(saved_match.group(1).replace(",", "")) if saved_match else 0.0
-        return {"amount_spent": spent, "amount_saved": saved, "raw_response": response}
+    @property
+    def response_model(self) -> Type[BaseModel]:
+        return WindfallResponse
+
+    def parse_response(self, response: Any) -> Dict[str, Any]:
+        """Accepts either a Pydantic model, dict, or raw JSON string."""
+        if isinstance(response, BaseModel):
+            data = response.model_dump()
+            data["raw_response"] = response.model_dump_json()
+            data["parsing_error"] = None
+            return data
+
+        if isinstance(response, dict):
+            return {
+                "amount_spent": float(response.get("amount_spent", 0.0)),
+                "amount_saved": float(response.get("amount_saved", 0.0)),
+                "raw_response": json.dumps(response),
+                "parsing_error": None,
+            }
+
+        # Fallback: attempt to parse string JSON with Pydantic validation
+        try:
+            cleaned = str(response).strip()
+            if cleaned.startswith("```json") and cleaned.endswith("```"):
+                cleaned = cleaned[7:-3].strip()
+            validated = WindfallResponse.model_validate_json(cleaned)
+            data = validated.model_dump()
+            data["raw_response"] = str(response)
+            data["parsing_error"] = None
+            return data
+        except (ValidationError, json.JSONDecodeError) as exc:
+            return {
+                "amount_spent": 0.0,
+                "amount_saved": 0.0,
+                "raw_response": str(response),
+                "parsing_error": str(exc),
+            }
 
 
-__all__ = ["Scenario", "SmallWindfallScenario"]
+__all__ = ["Scenario", "SmallWindfallScenario", "WindfallResponse"]
 
 

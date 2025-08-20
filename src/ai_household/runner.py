@@ -23,8 +23,19 @@ class ExperimentRunner:
             for household in population:
                 for scenario in self.scenarios:
                     prompt = scenario.get_prompt(household)
-                    raw = household.make_decision(prompt, self.api_gateway)
-                    parsed = scenario.parse_response(raw)
+                    # Prefer structured results; fall back to text if needed
+                    if hasattr(household, "make_structured_decision"):
+                        try:
+                            structured = household.make_structured_decision(
+                                prompt, scenario.response_model, self.api_gateway
+                            )
+                            parsed = scenario.parse_response(structured)
+                        except Exception:
+                            raw = household.make_decision(prompt, self.api_gateway)
+                            parsed = scenario.parse_response(raw)
+                    else:
+                        raw = household.make_decision(prompt, self.api_gateway)
+                        parsed = scenario.parse_response(raw)
 
                     record = {
                         "household_uid": household.uid,

@@ -38,6 +38,11 @@ class ZeroShotHousehold(SyntheticHousehold):
         self.decision_history.append({"prompt": prompt, "response": response})
         return response
 
+    def make_structured_decision(self, prompt: str, response_model: Any, api_gateway: APIGateway) -> Any:
+        result = api_gateway.query_structured(prompt, response_model=response_model, model="gpt-4o-mini")
+        self.decision_history.append({"prompt": prompt, "response": result})
+        return result
+
 
 class ChainOfThoughtHousehold(SyntheticHousehold):
     """Appends a CoT instruction to encourage step-by-step reasoning."""
@@ -47,6 +52,12 @@ class ChainOfThoughtHousehold(SyntheticHousehold):
         response = api_gateway.query(enhanced, model="sim-cot")
         self.decision_history.append({"prompt": enhanced, "response": response})
         return response
+
+    def make_structured_decision(self, prompt: str, response_model: Any, api_gateway: APIGateway) -> Any:
+        enhanced = f"{prompt}\n\nLet's think step by step before making a decision."
+        result = api_gateway.query_structured(enhanced, response_model=response_model, model="gpt-4o-mini")
+        self.decision_history.append({"prompt": enhanced, "response": result})
+        return result
 
 
 class PersonaDrivenHousehold(SyntheticHousehold):
@@ -62,6 +73,12 @@ class PersonaDrivenHousehold(SyntheticHousehold):
         response = api_gateway.query(prefixed, model="sim-persona")
         self.decision_history.append({"prompt": prefixed, "response": response})
         return response
+
+    def make_structured_decision(self, prompt: str, response_model: Any, api_gateway: APIGateway) -> Any:
+        prefixed = f"{self.persona}\n\n{prompt}"
+        result = api_gateway.query_structured(prefixed, response_model=response_model, model="gpt-4o-mini")
+        self.decision_history.append({"prompt": prefixed, "response": result})
+        return result
 
 
 __all__ = [
