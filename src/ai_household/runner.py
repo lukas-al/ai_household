@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from typing import Dict, Iterable, List
-
+import pandas as pd
 from .gateway import APIGateway
-from .households import SyntheticHousehold
-from .scenarios import Scenario
+from .households import BaseHousehold
+from .scenarios import BaseScenario
 
 
 class ExperimentRunner:
     """Run scenarios for a set of household populations using structured outputs."""
 
-    def __init__(self, populations: Dict[str, Iterable[SyntheticHousehold]], scenarios: List[Scenario]):
+    def __init__(
+        self,
+        populations: Dict[str, Iterable[BaseHousehold]],
+        scenarios: List[BaseScenario],
+    ):
         self.populations = populations
         self.scenarios = scenarios
         self.api_gateway = APIGateway()
@@ -24,10 +28,12 @@ class ExperimentRunner:
             for household in population:
                 for scenario in self.scenarios:
                     prompt = scenario.get_prompt(household)
-                    
+
                     # All households now use structured decision making
-                    result = household.make_decision(prompt, scenario.response_model, self.api_gateway)
-                    
+                    result = household.make_decision(
+                        prompt, scenario.response_model, self.api_gateway
+                    )
+
                     # Convert the Pydantic model to a dict and add metadata
                     record = {
                         "household_uid": household.uid,
@@ -41,11 +47,8 @@ class ExperimentRunner:
 
     def get_results_dataframe(self):
         # Import locally to avoid hard dependency at package import time
-        import pandas as pd  # type: ignore
 
         return pd.DataFrame(self.results)
 
 
 __all__ = ["ExperimentRunner"]
-
-

@@ -34,7 +34,7 @@ def test_windfall_response_model():
     response = WindfallResponse(amount_spent=400.0, amount_saved=600.0)
     assert response.amount_spent == 400.0
     assert response.amount_saved == 600.0
-    
+
     # Test validation
     with pytest.raises(ValueError):
         WindfallResponse(amount_spent=-100.0, amount_saved=600.0)
@@ -52,7 +52,7 @@ def test_scenario_prompt_generation():
     """Test that scenario generates appropriate prompts."""
     scenario = SmallWindfallScenario(windfall_amount=1000.0)
     household = ZeroShotHousehold(income=60_000.0, liquid_wealth=15_000.0)
-    
+
     prompt = scenario.get_prompt(household)
     assert "60,000" in prompt
     assert "15,000" in prompt
