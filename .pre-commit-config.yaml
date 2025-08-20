@@ -1,0 +1,27 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+        exclude: '\.ipynb$'
+      - id: trailing-whitespace
+        exclude: '\.ipynb$'
+      - id: check-added-large-files
+        args: ['--maxkb=1024'] # Check for files > 1MB
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ensure rev matches the ruff version in pyproject.toml if possible
+    rev: v0.12.7
+    hooks:
+      - id: ruff-format
+        exclude: '\.ipynb$'
+      - id: ruff
+        exclude: '\.ipynb$'
+        args: [--fix]
+
+  - repo: https://github.com/srstevenson/nb-clean
+    rev: 4.0.1
+    hooks:
+      - id: nb-clean
