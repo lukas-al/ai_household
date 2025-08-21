@@ -14,6 +14,7 @@ dependencies = [
     { name = "plotly" },
     { name = "pydantic" },
     { name = "pytest" },
+    { name = "pyyaml" },
     { name = "ruff" },
     { name = "watchdog" },
 ]
@@ -27,6 +28,7 @@ requires-dist = [
     { name = "plotly", specifier = ">=6.3.0" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "ruff", specifier = ">=0.12.7" },
     { name = "watchdog", specifier = ">=6.0.0" },
 ]

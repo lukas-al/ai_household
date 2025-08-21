@@ -371,5 +371,68 @@ def _(px, results_df):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Experiment Tracking""")
+    return
+
+
+@app.cell
+def _(results_df):
+    from src.ai_household import log_experiment, load_all_experiments
+    
+    # Define experiment parameters and metrics
+    experiment_params = {
+        "windfall_amount": 1000.0,
+        "num_households": len(results_df),
+        "household_type": "baseline",
+        "model": "openai/gpt-oss-20b",
+        "scenario": "MPC_Windfall_1000"
+    }
+    
+    experiment_metrics = {
+        "avg_mpc": results_df["mpc"].mean(),
+        "std_mpc": results_df["mpc"].std(),
+        "min_mpc": results_df["mpc"].min(),
+        "max_mpc": results_df["mpc"].max(),
+        "median_mpc": results_df["mpc"].median(),
+        "num_observations": len(results_df)
+    }
+    
+    # Log the experiment
+    log_experiment(
+        experiment_name="mpc_baseline_experiment",
+        params=experiment_params,
+        metrics=experiment_metrics,
+        results_df=results_df
+    )
+    
+    return experiment_metrics, experiment_params
+
+
+@app.cell
+def _():
+    # Load and display all experiments
+    from src.ai_household import load_all_experiments
+    
+    all_experiments_df = load_all_experiments()
+    all_experiments_df
+    return (all_experiments_df,)
+
+
+@app.cell
+def _(all_experiments_df):
+    # Show experiment tracking summary
+    if not all_experiments_df.empty:
+        print("Experiment Tracking Summary:")
+        print(f"Total experiments logged: {len(all_experiments_df)}")
+        print(f"Date range: {all_experiments_df['timestamp'].min()} to {all_experiments_df['timestamp'].max()}")
+        
+        # Show key metrics over time if multiple experiments
+        if len(all_experiments_df) > 1 and 'metric_avg_mpc' in all_experiments_df.columns:
+            print(f"MPC range across experiments: {all_experiments_df['metric_avg_mpc'].min():.3f} - {all_experiments_df['metric_avg_mpc'].max():.3f}")
+    return
+
+
 if __name__ == "__main__":
     app.run()

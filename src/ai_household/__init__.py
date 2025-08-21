@@ -16,6 +16,7 @@ from .gateway import *
 from .households import *
 from .scenarios import *
 from .runner import *
+from .experiment_tracker import *
 
 
 __all__ = [
@@ -25,4 +26,7 @@ __all__ = [
     "SimpleHousehold",
     "BaseScenario",
     "ExperimentRunner",
+    "log_experiment",
+    "load_all_experiments",
+    "load_experiment_results",
 ]
