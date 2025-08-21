@@ -26,7 +26,12 @@ class APIGateway:
     type safety automatically.
     """
 
-    def __init__(self, max_retries: int = 2, model: str = "openai/gpt-oss-20b", cache: bool = False) -> None:
+    def __init__(
+        self,
+        max_retries: int = 2,
+        model: str = "openai/gpt-oss-20b",
+        cache: bool = False,
+    ) -> None:
         self._model = model
         self._max_retries = max_retries
 

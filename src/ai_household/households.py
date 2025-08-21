@@ -33,6 +33,7 @@ class BaseHousehold(ABC):
         """Return a structured response using the provided Pydantic model."""
         raise NotImplementedError
 
+
 @dataclass
 class SimpleHousehold(BaseHousehold):
     """Basic household that uses zero-shot prompting."""

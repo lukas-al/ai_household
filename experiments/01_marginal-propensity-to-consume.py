@@ -11,22 +11,33 @@ def _():
     import getpass
     import os
     import plotly.express as px
+    import seaborn as sns
 
     from openai import OpenAI
 
     from pydantic import BaseModel, Field
-    from src.ai_household import SimpleHousehold, ExperimentRunner
+    from src.ai_household import (
+        SimpleHousehold,
+        ExperimentRunner,
+        log_experiment,
+        load_experiment_results,
+        BaseScenario,
+        BaseHousehold,
+    )
 
     sys.executable
     return (
+        BaseHousehold,
         BaseModel,
+        BaseScenario,
         ExperimentRunner,
         Field,
         SimpleHousehold,
         getpass,
+        log_experiment,
         mo,
         os,
-        px,
+        sns,
     )
 
 
@@ -246,7 +257,7 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
     mo.md(r"""## Set up experiment""")
     return
@@ -276,9 +287,7 @@ def _(BaseModel, Field):
 
 
 @app.cell
-def _(BaseModel, MPCResponse):
-    from src.ai_household import BaseScenario, BaseHousehold
-
+def _(BaseHousehold, BaseModel, BaseScenario, MPCResponse):
     # MPC scenario implementation
     class MPCScenario(BaseScenario):
         """Scenario testing marginal propensity to consume with small windfall."""
@@ -306,131 +315,94 @@ def _(BaseModel, MPCResponse):
 
 
 @app.cell
-def _(ExperimentRunner, MPCScenario, SimpleHousehold):
+def _(mo):
+    mo.md(r"""## Run experiment and log""")
+    return
 
-    # Create households with different wealth levels
-    _households = {
-        "baseline": [
-            SimpleHousehold() for x in range(10)
+
+@app.cell
+def _(ExperimentRunner, MPCScenario, SimpleHousehold, log_experiment, mo, sns):
+    if True:
+        _windfall_amnt = 500.0
+        _n_households = 100
+        _model = "openai/gpt-oss-20b"
+
+        ### Create households with different wealth levels
+        _households = {"baseline": [SimpleHousehold() for x in range(_n_households)]}
+
+        # Create scenario
+        _mpc_scenario = MPCScenario(windfall_amount=_windfall_amnt)
+
+        # Create experiment runner. Adding cache removes the LLM's inherent stochasticity (which is interesting itself)
+        _runner = ExperimentRunner(
+            populations=_households,
+            scenarios=[_mpc_scenario],
+            cache=False,
+            model=_model,
+            max_retries=1,
+        )
+
+        ### Run the experiment
+        _runner.run()
+        _results_df = _runner.get_results_dataframe()
+
+        ### Process results
+        _results_df["mpc"] = _results_df["amount_spent"] / _windfall_amnt
+
+        # Log experiment
+        # Define experiment parameters and metrics
+        experiment_params = {
+            "windfall_amount": _windfall_amnt,
+            "num_households": _n_households,
+            "household_type": "baseline",
+            "description": """
+            This is a baseline, zero-shot experiment designed to test the model's intrinsic response to a marginal propensity to consume (MPC) scenario.
+            The experiment uses a generic SimpleHousehold agent, providing no context or narrative. The prompt is a direct question asking the household how to allocate an unexpected windfall between spending and saving. The model is not prompted for reasoning, only for the final allocation amounts. The objective is to establish a foundational benchmark for the openai/gpt-oss-20b model's inherent economic priors before introducing more complex variables.
+            """,
+            "model": _model,
+            "scenario": f"MPC_Windfall_{_windfall_amnt}",
+        }
+
+        experiment_metrics = {
+            "avg_mpc": _results_df["mpc"].mean(),
+            "std_mpc": _results_df["mpc"].std(),
+            "min_mpc": _results_df["mpc"].min(),
+            "max_mpc": _results_df["mpc"].max(),
+            "median_mpc": _results_df["mpc"].median(),
+            "num_observations": len(_results_df),
+        }
+
+        # Log the experiment
+        log_experiment(
+            experiment_name="mpc_baseline_experiment",
+            params=experiment_params,
+            metrics=experiment_metrics,
+            results_df=_results_df,
+        )
+
+    mo.vstack(
+        [
+            mo.md("MPC Statistics by Household Type:"),
+            _results_df.groupby("household_type")["mpc"].agg(
+                ["mean", "std", "min", "max"]
+            ),
+            sns.histplot(_results_df["mpc"]),
+            _results_df,
         ]
-    }
-
-    # Create scenario
-    mpc_scenario = MPCScenario(windfall_amount=1000.0)
-
-    # Create experiment runner
-    runner = ExperimentRunner(populations=_households, scenarios=[mpc_scenario], cache=False)
-
-    return (runner,)
+    )    
+    return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
-    mo.md(r"""## Run the experiment""")
+    mo.md(r"""# Experiment with alternative models in the 0 shot no context baseline""")
     return
-
-
-@app.cell
-def _(runner):
-    # Run the experiment
-    runner.run()
-
-    # Get results as DataFrame
-    results_df = runner.get_results_dataframe()
-
-    return (results_df,)
-
-
-@app.cell
-def _(results_df):
-    # Calculate MPC for each household
-    results_df["mpc"] = results_df["amount_spent"] / 1000.0  # windfall amount
-
-    # Display basic statistics
-    print("MPC Statistics by Household Type:")
-    mpc_stats = results_df.groupby("household_type")["mpc"].agg(
-        ["mean", "std", "min", "max"]
-    )
-    print(mpc_stats)
-
-    print(f"\nOverall MPC: {results_df['mpc'].mean():.3f}")
-
-    return
-
-
-@app.cell
-def _(results_df):
-    # Display the detailed results
-    results_df
-    return
-
-
-@app.cell
-def _(px, results_df):
-    px.histogram(results_df["mpc"], nbins=10)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""# Experiment Tracking""")
-    return
-
-
-@app.cell
-def _(results_df):
-    from src.ai_household import log_experiment, load_all_experiments
-    
-    # Define experiment parameters and metrics
-    experiment_params = {
-        "windfall_amount": 1000.0,
-        "num_households": len(results_df),
-        "household_type": "baseline",
-        "model": "openai/gpt-oss-20b",
-        "scenario": "MPC_Windfall_1000"
-    }
-    
-    experiment_metrics = {
-        "avg_mpc": results_df["mpc"].mean(),
-        "std_mpc": results_df["mpc"].std(),
-        "min_mpc": results_df["mpc"].min(),
-        "max_mpc": results_df["mpc"].max(),
-        "median_mpc": results_df["mpc"].median(),
-        "num_observations": len(results_df)
-    }
-    
-    # Log the experiment
-    log_experiment(
-        experiment_name="mpc_baseline_experiment",
-        params=experiment_params,
-        metrics=experiment_metrics,
-        results_df=results_df
-    )
-    
-    return experiment_metrics, experiment_params
 
 
 @app.cell
 def _():
-    # Load and display all experiments
-    from src.ai_household import load_all_experiments
-    
-    all_experiments_df = load_all_experiments()
-    all_experiments_df
-    return (all_experiments_df,)
-
-
-@app.cell
-def _(all_experiments_df):
-    # Show experiment tracking summary
-    if not all_experiments_df.empty:
-        print("Experiment Tracking Summary:")
-        print(f"Total experiments logged: {len(all_experiments_df)}")
-        print(f"Date range: {all_experiments_df['timestamp'].min()} to {all_experiments_df['timestamp'].max()}")
-        
-        # Show key metrics over time if multiple experiments
-        if len(all_experiments_df) > 1 and 'metric_avg_mpc' in all_experiments_df.columns:
-            print(f"MPC range across experiments: {all_experiments_df['metric_avg_mpc'].min():.3f} - {all_experiments_df['metric_avg_mpc'].max():.3f}")
+    # all_experiments_df = load_all_experiments()
+    # all_experiments_df
     return
 
 
