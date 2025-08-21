@@ -1,40 +1,12 @@
-datetime: '2025-08-21T12:23:11.588313'
+datetime: '2025-08-21T13:17:58.047605'
 experiment_name: mpc_baseline_experiment
 metrics:
-  avg_mpc: !!python/object/apply:numpy._core.multiarray.scalar
-  - &id001 !!python/object/apply:numpy.dtype
-    args:
-    - f8
-    - false
-    - true
-    state: !!python/tuple
-    - 3
-    - <
-    - null
-    - null
-    - null
-    - -1
-    - -1
-    - 0
-  - !!binary |
-    ke18PzVe4j8=
-  max_mpc: !!python/object/apply:numpy._core.multiarray.scalar
-  - *id001
-  - !!binary |
-    mpmZmZmZ6T8=
-  median_mpc: !!python/object/apply:numpy._core.multiarray.scalar
-  - *id001
-  - !!binary |
-    MzMzMzMz4z8=
-  min_mpc: !!python/object/apply:numpy._core.multiarray.scalar
-  - *id001
-  - !!binary |
-    MzMzMzMz0z8=
+  avg_mpc: 0.538
+  max_mpc: 0.8
+  median_mpc: 0.6
+  min_mpc: 0.25
   num_observations: 100
-  std_mpc: !!python/object/apply:numpy._core.multiarray.scalar
-  - *id001
-  - !!binary |
-    LAZB4/KiwD8=
+  std_mpc: 0.14773030299922366
 parameters:
   description: "\n        This is a baseline, zero-shot experiment designed to test\
     \ the model's intrinsic response to a marginal propensity to consume (MPC) scenario.\n\
@@ -49,4 +21,4 @@ parameters:
   num_households: 100
   scenario: MPC_Windfall_500.0
   windfall_amount: 500.0
-timestamp: 2025-08-21_12-23-11
+timestamp: 2025-08-21_13-17-58

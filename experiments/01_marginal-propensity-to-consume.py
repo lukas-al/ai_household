@@ -21,6 +21,7 @@ def _():
         ExperimentRunner,
         log_experiment,
         load_experiment_results,
+        load_all_experiments,
         BaseScenario,
         BaseHousehold,
     )
@@ -271,12 +272,12 @@ def _(BaseModel, Field):
 
         amount_spent: float = Field(
             ...,
-            description="The dollar amount the household decides to spend from the windfall",
+            description="The amount the household decides to spend from the windfall",
             ge=0,
         )
         amount_saved: float = Field(
             ...,
-            description="The dollar amount the household decides to save from the windfall",
+            description="The amount the household decides to save from the windfall",
             ge=0,
         )
         # reasoning: str = Field(
@@ -389,20 +390,51 @@ def _(ExperimentRunner, MPCScenario, SimpleHousehold, log_experiment, mo, sns):
             sns.histplot(_results_df["mpc"]),
             _results_df,
         ]
-    )    
+    )
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Experiment with alternative models in the 0 shot no context baseline""")
+    mo.md(
+        r"""
+    # Experiment with alternative models in the 0 shot no context baseline
+
+    1. Reasoning models
+    2. LLMs
+    3. Different sizes
+    4. Different strengths
+    5. Sources (China vs US vs EU)
+    6. De-tuned (without fine tuning?)
+    7. Any human-specific fine tunes?
+    """
+    )
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    # Experiment with prompt engineering
+
+    DSPy? Another automated prompt evolution framework (MIPRO in DSPy?)
+    """
+    )
     return
 
 
 @app.cell
 def _():
     # all_experiments_df = load_all_experiments()
-    # all_experiments_df
+    # _res_df = load_experiment_results(all_experiments_df.iloc[0]['run_path'])
+
+    # px.histogram(_res_df['mpc'], nbins=100)
     return
 
 

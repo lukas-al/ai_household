@@ -6,13 +6,43 @@ and raw data storage.
 
 from __future__ import annotations
 
-import os
 import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 import pandas as pd
+import numpy as np
+
+
+def _convert_numpy_types(data: Any) -> Any:
+    """
+    Recursively traverses a data structure and converts NumPy numeric types
+    to native Python types for clean YAML serialization.
+    Updated for NumPy 2.0 compatibility.
+    """
+    if isinstance(data, dict):
+        # If it's a dictionary, recurse on its values
+        return {key: _convert_numpy_types(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        # If it's a list, recurse on its elements
+        return [_convert_numpy_types(item) for item in data]
+    # --- FIX for NumPy 2.0 ---
+    # Use np.integer and np.floating, which are the abstract base classes
+    # for all NumPy integer and float types, respectively.
+    # The aliases np.int_ and np.float_ were removed in NumPy 2.0.
+    elif isinstance(data, np.integer):
+        # If it's any kind of NumPy integer, convert to a native Python int
+        return int(data)
+    elif isinstance(data, np.floating):
+        # If it's any kind of NumPy float, convert to a native Python float
+        return float(data)
+    elif isinstance(data, np.ndarray):
+        # If it's a NumPy array, convert it to a list
+        return data.tolist()
+    else:
+        # Otherwise, return the data as is
+        return data
 
 
 def log_experiment(
@@ -27,6 +57,7 @@ def log_experiment(
 
     Creates a unique timestamped directory containing metadata and raw results
     for the given experiment run. Accepts any additional metadata fields.
+    This version automatically converts NumPy types for clean YAML output.
 
     Args:
         experiment_name: Name of the experiment
@@ -35,15 +66,6 @@ def log_experiment(
         results_df: DataFrame containing raw, row-level experiment data
         base_dir: Base directory to store results (defaults to "results")
         **metadata_fields: Any additional metadata fields to store (e.g., description, exclusions, inclusions)
-
-    Example:
-        >>> params = {"windfall_amount": 1000, "num_households": 10}
-        >>> metrics = {"avg_mpc": 0.23, "std_mpc": 0.15}
-        >>> log_experiment("mpc_baseline", params, metrics, results_df,
-        ...                description="Baseline MPC analysis",
-        ...                exclusions=["outliers"],
-        ...                inclusions=["standard_households"])
-        Experiment saved to: results/2024-01-15_14-30-22_mpc_baseline
     """
     # Create timestamp for unique directory naming
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -67,10 +89,20 @@ def log_experiment(
     # Add any additional metadata fields
     metadata.update(metadata_fields)
 
-    # Save metadata as YAML file
+    # Convert all NumPy types to native Python types for clean serialization
+    clean_metadata = _convert_numpy_types(metadata)
+
+    # Save metadata as YAML file using the cleaned data
     metadata_path = experiment_dir / "metadata.yaml"
     with open(metadata_path, "w") as f:
-        yaml.dump(metadata, f, default_flow_style=False, indent=2)
+        # Use a SafeDumper for better security and portability
+        yaml.dump(
+            clean_metadata,
+            f,
+            default_flow_style=False,
+            indent=2,
+            Dumper=yaml.SafeDumper,
+        )
 
     # Save raw results as pickle
     results_path = experiment_dir / "results.pkl"
