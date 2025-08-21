@@ -16,10 +16,13 @@ class ExperimentRunner:
         self,
         populations: Dict[str, Iterable[BaseHousehold]],
         scenarios: List[BaseScenario],
+        max_retries: int = 2,
+        model: str = "openai/gpt-oss-20b",
+        cache: bool = False,
     ):
         self.populations = populations
         self.scenarios = scenarios
-        self.api_gateway = APIGateway()
+        self.api_gateway = APIGateway(model=model, max_retries=max_retries, cache=cache)
         self.results: List[dict] = []
 
     def run(self) -> None:
@@ -46,8 +49,6 @@ class ExperimentRunner:
                     self.results.append(record)
 
     def get_results_dataframe(self):
-        # Import locally to avoid hard dependency at package import time
-
         return pd.DataFrame(self.results)
 
 

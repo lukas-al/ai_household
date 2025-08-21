@@ -8,9 +8,26 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     import sys
+    import getpass
+    import os
+    import plotly.express as px
+
     from openai import OpenAI
+
+    from pydantic import BaseModel, Field
+    from src.ai_household import SimpleHousehold, ExperimentRunner
+
     sys.executable
-    return (mo,)
+    return (
+        BaseModel,
+        ExperimentRunner,
+        Field,
+        SimpleHousehold,
+        getpass,
+        mo,
+        os,
+        px,
+    )
 
 
 @app.cell(hide_code=True)
@@ -196,21 +213,12 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Implementing the experiment""")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""## Configure environment""")
+    mo.md(r"""# Config""")
     return
 
 
 @app.cell
-def _():
-    import getpass
-    import os
-
+def _(getpass, os):
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
     if not OPENROUTER_API_KEY:
@@ -223,15 +231,29 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Create custom experiment""")
+    mo.md(
+        r"""
+    # Baseline experiment
+
+    Premise:
+
+    - No context
+    - Zero shot
+    - No reasoning asked for
+    - No narrative
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## Set up experiment""")
     return
 
 
 @app.cell
-def _():
-    from pydantic import BaseModel, Field
-    from src.ai_household import SimpleHousehold
-
+def _(BaseModel, Field):
     # Response model for MPC experiment
     class MPCResponse(BaseModel):
         """Response model for marginal propensity to consume decisions."""
@@ -243,22 +265,21 @@ def _():
         )
         amount_saved: float = Field(
             ...,
-            description="The dollar amount the household decides to save from the windfall", 
+            description="The dollar amount the household decides to save from the windfall",
             ge=0,
         )
-        reasoning: str = Field(
-            ...,
-            description="Brief explanation of the decision-making process"
-        )
+        # reasoning: str = Field(
+        #     ..., description="Brief explanation of the decision-making process"
+        # )
 
-    return BaseModel, MPCResponse, SimpleHousehold
+    return (MPCResponse,)
 
 
 @app.cell
 def _(BaseModel, MPCResponse):
     from src.ai_household import BaseScenario, BaseHousehold
 
-    # MPC scenario implementation  
+    # MPC scenario implementation
     class MPCScenario(BaseScenario):
         """Scenario testing marginal propensity to consume with small windfall."""
 
@@ -269,20 +290,15 @@ def _(BaseModel, MPCResponse):
         def name(self) -> str:
             return f"MPC_Windfall_{int(self._windfall_amount)}"
 
-        @property  
+        @property
         def response_model(self) -> type[BaseModel]:
             return MPCResponse
 
-        def get_prompt(self, household: BaseHousehold) -> str:
+        def get_prompt(self, household: type[BaseHousehold]) -> str:
             prompt = f"""
-            You are making financial decisions for a household that has just received an unexpected one-time windfall.
+            You are making financial decisions for a household that has just received an unexpected one-time windfall of £{self._windfall_amount}.
 
-            Household details:
-            - Annual income: ${household.income:,.0f}
-            - Current liquid savings: ${household.liquid_wealth:,.0f}
-            - Windfall received: ${self._windfall_amount:,.0f}
-
-            Please decide how to allocate this windfall between spending and saving. Consider your household's financial situation and explain your reasoning briefly.
+            Please decide how to allocate this windfall between spending and saving.
             """
             return prompt
 
@@ -290,34 +306,12 @@ def _(BaseModel, MPCResponse):
 
 
 @app.cell
-def _():
-    # import instructor
-
-    # client = instructor.from_provider(
-    #     "/openai/gpt-oss-20b",
-    #     base_url="https://openrouter.ai/api/v1",
-    #     api_key=OPENROUTER_API_KEY
-    # )
-    return
-
-
-@app.cell
-def _(MPCScenario, SimpleHousehold):
-    from src.ai_household import ExperimentRunner
+def _(ExperimentRunner, MPCScenario, SimpleHousehold):
 
     # Create households with different wealth levels
     _households = {
-        "low_wealth": [
-            SimpleHousehold(income=30_000, liquid_wealth=1_000),
-            SimpleHousehold(income=35_000, liquid_wealth=2_000),
-        ],
-        "medium_wealth": [
-            SimpleHousehold(income=50_000, liquid_wealth=10_000),
-            SimpleHousehold(income=55_000, liquid_wealth=12_000),
-        ],
-        "high_wealth": [
-            SimpleHousehold(income=100_000, liquid_wealth=50_000),
-            SimpleHousehold(income=120_000, liquid_wealth=60_000),
+        "baseline": [
+            SimpleHousehold() for x in range(10)
         ]
     }
 
@@ -325,10 +319,7 @@ def _(MPCScenario, SimpleHousehold):
     mpc_scenario = MPCScenario(windfall_amount=1000.0)
 
     # Create experiment runner
-    runner = ExperimentRunner(
-        populations=_households,
-        scenarios=[mpc_scenario]
-    )
+    runner = ExperimentRunner(populations=_households, scenarios=[mpc_scenario], cache=False)
 
     return (runner,)
 
@@ -352,13 +343,14 @@ def _(runner):
 
 @app.cell
 def _(results_df):
-
     # Calculate MPC for each household
-    results_df['mpc'] = results_df['amount_spent'] / 1000.0  # windfall amount
+    results_df["mpc"] = results_df["amount_spent"] / 1000.0  # windfall amount
 
     # Display basic statistics
     print("MPC Statistics by Household Type:")
-    mpc_stats = results_df.groupby('household_type')['mpc'].agg(['mean', 'std', 'min', 'max'])
+    mpc_stats = results_df.groupby("household_type")["mpc"].agg(
+        ["mean", "std", "min", "max"]
+    )
     print(mpc_stats)
 
     print(f"\nOverall MPC: {results_df['mpc'].mean():.3f}")
@@ -367,9 +359,15 @@ def _(results_df):
 
 
 @app.cell
-def _(mo, results_df):
+def _(results_df):
     # Display the detailed results
-    mo.ui.table(results_df[['household_type', 'hh_income', 'hh_liquid_wealth', 'amount_spent', 'amount_saved', 'mpc', 'reasoning']])
+    results_df
+    return
+
+
+@app.cell
+def _(px, results_df):
+    px.histogram(results_df["mpc"], nbins=10)
     return
 
 

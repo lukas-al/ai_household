@@ -7,6 +7,7 @@ import logging
 from typing import Type
 
 import instructor
+from openai import OpenAI
 from pydantic import BaseModel
 
 
@@ -25,23 +26,24 @@ class APIGateway:
     type safety automatically.
     """
 
-    def __init__(
-        self, max_retries: int = 2, model: str = "openai/gpt-oss-20b"
-    ) -> None:
+    def __init__(self, max_retries: int = 2, model: str = "openai/gpt-oss-20b", cache: bool = False) -> None:
         self._model = model
-        self._client = instructor.from_provider(
+        self._max_retries = max_retries
+
+        self._client = instructor.from_openai(
+            client=OpenAI(
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                base_url="https://openrouter.ai/api/v1",
+            ),
             model=model,
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            max_retries=max_retries,
-            cache=instructor.cache.DiskCache(directory=".cache"),
+            cache=instructor.cache.DiskCache(directory=".cache") if cache else None,
             mode=instructor.Mode.TOOLS,
         )
 
     def query_structured(
         self,
         prompt: str,
-        response_model: Type[BaseModel],
+        pydantic_response_model: Type[BaseModel],
     ) -> BaseModel:
         """Query the LLM for structured output using Instructor.
 
@@ -59,17 +61,18 @@ class APIGateway:
         logger.info(
             "Making structured API call | model=%s response_model=%s",
             self._model,
-            response_model.__name__,
+            pydantic_response_model.__name__,
         )
-        logger.debug("Prompt: %s", prompt)
+        logger.info("Prompt: %s", prompt)
 
         result = self._client.chat.completions.create(
+            response_model=pydantic_response_model,
             messages=[{"role": "user", "content": prompt}],
-            response_model=response_model,
-            # extra_body={"provider": {"require_parameters": True}},
+            extra_body={"provider": {"require_parameters": True}},
+            max_retries=self._max_retries,
         )
 
-        logger.debug("Response: %s", result)
+        logger.info("Response: %s", result)
         return result
 
 

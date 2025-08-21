@@ -21,25 +21,34 @@ class BaseHousehold(ABC):
     """
 
     uid: str = field(default_factory=lambda: str(uuid.uuid4()))
-    income: float = 50_000.0
-    liquid_wealth: float = 10_000.0
     decision_history: List[Dict[str, BaseModel]] = field(default_factory=list)
 
     @abstractmethod
     def make_decision(
-        self, prompt: str, response_model: type[BaseModel], api_gateway: APIGateway
+        self,
+        prompt: str,
+        pydantic_response_model: type[BaseModel],
+        api_gateway: APIGateway,
     ) -> BaseModel:
         """Return a structured response using the provided Pydantic model."""
         raise NotImplementedError
 
-
+@dataclass
 class SimpleHousehold(BaseHousehold):
     """Basic household that uses zero-shot prompting."""
-    
+
+    income: float = 50_000.0
+    liquid_wealth: float = 10_000.0
+
     def make_decision(
-        self, prompt: str, response_model: type[BaseModel], api_gateway: APIGateway
+        self,
+        prompt: str,
+        pydantic_response_model: type[BaseModel],
+        api_gateway: APIGateway,
     ) -> BaseModel:
-        result = api_gateway.query_structured(prompt, response_model=response_model)
+        result = api_gateway.query_structured(
+            prompt, pydantic_response_model=pydantic_response_model
+        )
         self.decision_history.append({"prompt": prompt, "response": result})
         return result
 
