@@ -16,12 +16,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    # create marginal propensity to consume target data
-
-    """
-    )
+    mo.md(r"""# create marginal propensity to consume target data""")
     return
 
 
@@ -489,7 +484,7 @@ def _(pd, re, studies_metadata):
 
     def refine_for_plotting(studies_dict):
         """Refines the studies metadata for plotting."""
-    
+
         # Process Natural Experiments
         natural_experiments_data = []
         for study in studies_dict['natural_experiments']:
@@ -503,14 +498,14 @@ def _(pd, re, studies_metadata):
                 'data': study['data'],
                 'type': 'Natural Experiment'
             })
-    
+
         # Process Elicitation Surveys
         elicitation_surveys_data = []
         for study in studies_dict['elicitation_surveys']:
             if '(pos.)' in study['mpc']:
                 pos_mpc_str = re.search(r'(\d+\.\d+)\s*\(pos\.\)', study['mpc']).group(1)
                 neg_mpc_str = re.search(r'(\d+\.\d+)\s*\(neg\.\)', study['mpc']).group(1)
-            
+
                 pos_lower, pos_upper = parse_mpc(pos_mpc_str)
                 neg_lower, neg_upper = parse_mpc(neg_mpc_str)
 
@@ -553,10 +548,10 @@ def _(pd, re, studies_metadata):
             if 'condition' not in item:
                 item['condition'] = 'N/A'
             plot_friendly_data.append(item)
-    
+
         df = pd.DataFrame(plot_friendly_data)
         df.to_csv("data/mpc_study_.csv", index=False)
-    
+
         return df
 
     refined_df = refine_for_plotting(studies_metadata)
@@ -573,9 +568,9 @@ def _(np, pd, re):
         """
         if pd.isna(horizon_str):
             return np.nan
-        
+
         horizon_str = str(horizon_str).lower().strip()
-    
+
         # Extract numbers from the string
         numbers = re.findall(r'\d+\.?\d*', horizon_str)
         num = float(numbers[0]) if numbers else 1
