@@ -16,4 +16,6 @@ dependencies = [
     "plotly>=6.3.0",
     "pyyaml>=6.0.0",
     "seaborn>=0.13.2",
+    "dspy>=3.0.1",
+    "mlflow>=3.3.1",
 ]

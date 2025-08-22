@@ -169,5 +169,11 @@ __marimo__/
 
 # Cursor
 .cursor/
+
+# MLflow
+mlruns/
+mlflow_data/*
+mlartifacts/*
+
 # Keep empty directories
 !.gitkeep
